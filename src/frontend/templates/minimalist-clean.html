@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="{{locale}}">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{labels.invoiceTitle}} {{invoiceNumber}}</title>
+    <style>
+      :root {
+        --highlight-color: {{highlightColor || "#059669"}};
+        --highlight-light: {{highlightColorLight || "#ecfdf5"}};
+        --text-dark: #111827;
+        --text-medium: #374151;
+        --text-light: #9ca3af;
+        --border-color: #d1d5db;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      @page { size: A4; margin: 10mm; }
+      body { font-family: "Helvetica Neue", Arial, sans-serif; line-height: 1.4; color: var(--text-dark); padding: 4mm 6mm; max-width: 190mm; margin: 0 auto; background: #fff; font-size: 12.2px; }
+
+  .header { margin-bottom: 14px; /* float-based layout for consistent PDF engine rendering */ }
+
+      .company-info {
+        float: left;
+        width: 62%;
+      }
+      /* Brand row with absolute-positioned logo ensures logo height follows info block height. */
+      .brand {
+        position: relative;
+        margin-right: 276px;
+        padding-left: 148px;
+        margin-bottom: 6px;
+      }
+      .brand .logo-box {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 140px;
+        padding-right: 8px;
+      }
+      .brand .company-info {
+        float: none;
+        width: auto;
+      }
+      .brand img.logo {
+        height: 100%;
+        width: auto;
+        display: block;
+        object-fit: contain;
+        max-width: 220px;
+      }
+      .invoice-meta {
+        float: right;
+        text-align: left;
+        max-width: 280px;
+      }
+      .invoice-meta {
+        display: inline-block;
+        background: var(--highlight-light);
+        border-left: 3px solid var(--highlight-color);
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .invoice-meta div {
+        margin: 2px 0;
+      }
+      .invoice-title-block {
+        clear: both;
+        padding-top: 8px;
+      }
+
+      .company-info h1 {
+        font-size: 20px;
+        font-weight: 400;
+        color: var(--highlight-color);
+        margin-bottom: 6px;
+        letter-spacing: 1.5px;
+      }
+
+      .company-details {
+        color: var(--text-medium);
+        font-size: 12px;
+        font-weight: 300;
+      }
+
+      .invoice-title { font-size: 30px; font-weight: 200; color: var(--text-dark); text-align: right; letter-spacing: 1px; }
+
+      /* Top-of-page title variant */
+      .invoice-title--top {
+        text-align: left;
+        margin-bottom: 4px;
+      }
+      .invoice-number--top {
+        text-align: left;
+        margin-top: 2px;
+        font-size: 12px;
+        color: var(--text-medium);
+      }
+
+      .invoice-number {
+        text-align: right;
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--text-medium);
+        font-weight: 300;
+      }
+
+      .dates-section { display: flex; justify-content: space-between; margin-bottom: 16px; padding: 10px 0; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); }
+
+      .date-item {
+        text-align: center;
+      }
+
+      .date-label {
+        font-size: 11px;
+        color: var(--text-light);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 2px;
+      }
+
+      .date-value {
+        font-size: 14px;
+        color: var(--text-dark);
+        font-weight: 400;
+      }
+
+      .customer-section { margin-bottom: 16px; }
+
+      .section-label {
+        font-size: 11px;
+        color: var(--highlight-color);
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-bottom: 10px;
+        font-weight: 600;
+      }
+
+      .customer-name {
+        font-size: 16px;
+        font-weight: 400;
+        color: var(--text-dark);
+        margin-bottom: 8px;
+      }
+
+      .customer-details {
+        color: var(--text-medium);
+        font-size: 12px;
+        font-weight: 300;
+        line-height: 1.5;
+      }
+
+      .items-section { margin-bottom: 14px; }
+
+      .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        border-spacing: 0;
+      }
+
+      .items-table thead th { background: var(--highlight-color); color: #fff; padding: 6px 8px; text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; border: none; }
+
+      .items-table thead th:last-child {
+        text-align: right;
+      }
+
+      .items-table tbody td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; font-size: 11.2px; font-weight: 300; }
+      .items-table {
+        page-break-inside: avoid;
+      }
+      tr, td, th {
+        page-break-inside: avoid;
+      }
+
+      @media print {
+        body {
+          padding: 0;
+          font-size: 12px;
+        }
+        .header {
+          margin-bottom: 16px;
+        }
+        .invoice-title {
+          font-size: 28px;
+        }
+        table, tr, td, th {
+          page-break-inside: avoid !important;
+        }
+      }
+
+      .items-table tbody td:last-child {
+        text-align: right;
+        font-weight: 400;
+      }
+
+      .items-table tbody tr:last-child td {
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .item-description { color: var(--text-dark); font-weight: 400; margin-bottom: 2px; }
+
+      .item-code {
+        color: var(--highlight-color);
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .item-notes {
+        color: var(--text-light);
+        font-size: 12px;
+        margin-top: 4px;
+      }
+
+      .totals-section { margin-left: auto; width: 280px; margin-bottom: 28px; page-break-inside: avoid; }
+
+      .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; font-weight: 300; }
+
+      .totals-row.subtotal { color: var(--text-medium); border-bottom: 1px solid #f3f4f6; padding-bottom: 8px; margin-bottom: 4px; }
+
+      .totals-row.total { border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: 6px; font-size: 16px; font-weight: 400; color: var(--highlight-color); }
+
+      .notes-section { margin-bottom: 24px; }
+
+      .notes-content { color: var(--text-medium); font-size: 12.5px; font-weight: 300; line-height: 1.5; padding: 14px; background: var(--highlight-light); border-left: 3px solid var(--highlight-color); }
+
+      .footer { border-top: 1px solid var(--border-color); padding-top: 20px; text-align: center; color: var(--text-light); font-size: 11px; font-weight: 300; }
+
+      .footer p {
+        margin: 8px 0;
+      }
+
+      .status-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border: 1px solid var(--highlight-color);
+        color: var(--highlight-color);
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        background: transparent;
+      }
+
+      @media print { body { padding: 4mm 6mm; font-size: 12px; } .header { margin-bottom: 14px; } .invoice-title { font-size: 30px; } }
+
+      @media (max-width: 640px) {
+        body {
+          padding: 20px;
+        }
+        .header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 20px;
+        }
+        .invoice-title {
+          text-align: left;
+          font-size: 32px;
+        }
+        .invoice-number {
+          text-align: left;
+        }
+        .dates-section {
+          flex-direction: column;
+          gap: 16px;
+          text-align: left;
+        }
+        .totals-section {
+          width: 100%;
+        }
+      }
+
+      .header {
+        position: relative;
+      }
+      .invoice-meta {
+        float: right;
+        max-width: 260px;
+        margin-left: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Top title -->
+    <div class="title-top">
+      <h2 class="invoice-title invoice-title--top">{{labels.invoiceTitle}}</h2>
+      {{#invoiceNumber}}<div class="invoice-number invoice-number--top">
+        {{labels.invoiceNumberShortLabel}} {{invoiceNumber}}
+      </div>{{/invoiceNumber}}
+    </div>
+    <div class="header">
+      <div class="invoice-meta">
+        <div><strong>{{labels.invoiceDateLabel}}:</strong> {{issueDate}}</div>
+        {{#dueDate}}<div>
+          <strong>{{labels.dueDateLabel}}:</strong> {{dueDate}}
+        </div>{{/dueDate}}
+        <div>
+          <strong>{{labels.statusLabel}}:</strong> <span class="status-badge">{{status}}</span>
+        </div>
+      </div>
+
+      <div class="brand">
+        <div class="logo-box">
+          {{#logoUrl}}<img
+            class="logo"
+            src="{{logoUrl}}"
+            alt="{{companyName}} logo"
+          />{{/logoUrl}}
+        </div>
+        <div class="company-info">
+          <h1>{{companyName}}</h1>
+          <div class="company-details">
+            {{#companyAddress}}<p>{{{companyAddress}}}</p>{{/companyAddress}}
+            {{#companyPostalCity}}<p>{{companyPostalCity}}</p>{{/companyPostalCity}}
+            {{#companyEmail}}<p>{{companyEmail}}</p>{{/companyEmail}}
+            {{#companyPhone}}<p>{{companyPhone}}</p>{{/companyPhone}}
+            {{#companyTaxId}}<p>{{companyTaxId}}</p>{{/companyTaxId}}
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          try {
+            var brand = document.querySelector(".brand");
+            if (!brand) return;
+            var logo = brand.querySelector("img.logo");
+            var info = brand.querySelector(".company-info");
+            if (!logo || !info) return;
+            function fit() {
+              try {
+                logo.style.height = "auto";
+                var h = info.offsetHeight;
+                if (h && h > 0) {
+                  logo.style.height = h + "px";
+                  logo.style.width = "auto";
+                }
+              } catch (e) {}
+            }
+            if (document.fonts && document.fonts.ready) {
+              document.fonts.ready.then(fit);
+            }
+            window.addEventListener("load", fit);
+            setTimeout(fit, 60);
+          } catch (e) {}
+        })();
+      </script>
+      <!-- Clear floats below header content -->
+      <div style="clear: both"></div>
+    </div>
+
+    <div class="customer-section">
+      <div class="section-label">{{labels.billToHeading}}</div>
+      <div class="customer-name">{{customerName}}</div>
+      <div class="customer-details">
+        {{#customerEmail}}<p>{{customerEmail}}</p>{{/customerEmail}}
+        {{#customerContactName}}<p>{{customerContactName}}</p>{{/customerContactName}}
+        {{#customerPhone}}<p>{{customerPhone}}</p>{{/customerPhone}}
+        {{#customerAddress}}<p>{{{customerAddress}}}</p>{{/customerAddress}}
+        {{#customerPostalCity}}<p>{{customerPostalCity}}</p>{{/customerPostalCity}}
+        {{#customerCountryCode}}<p>{{customerCountryCode}}</p>{{/customerCountryCode}}
+  {{#customerTaxId}}<p>{{labels.taxIdLabel}}: {{customerTaxId}}</p>{{/customerTaxId}}
+      </div>
+    </div>
+
+    <div class="items-section">
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>{{labels.itemHeaderDescription}}</th>
+            <th>{{labels.itemHeaderQuantityShort}}</th>
+            {{#hasItemUnits}}<th>{{labels.itemHeaderUnit}}</th>{{/hasItemUnits}}
+            <th>{{labels.itemHeaderUnitPriceShort}}</th>
+            <th>{{labels.itemHeaderAmount}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#items}}
+          <tr>
+            <td>
+              <div class="item-description">{{description}}</div>
+              {{#notes}}<div class="item-notes">{{notes}}</div>{{/notes}}
+            </td>
+            <td>{{quantity}}</td>
+            {{#hasItemUnits}}<td>{{unit}}</td>{{/hasItemUnits}}
+            <td>{{unitPrice}}</td>
+            <td>{{lineTotal}}</td>
+          </tr>
+          {{/items}}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="totals-section">
+      <div class="totals-row subtotal">
+        <span>{{labels.subtotalLabel}}</span>
+        <span>{{subtotal}}</span>
+      </div>
+      {{#hasDiscount}}
+      <div class="totals-row">
+        <span>{{labels.discountLabel}}
+          {{#discountPercentage}}({{discountPercentage}}%){{/discountPercentage}}</span>
+        <span>-{{discountAmount}}</span>
+      </div>
+      {{/hasDiscount}} {{#hasTax}}
+      <div class="totals-row">
+        <span>{{labels.taxLabel}} ({{taxRate}}%)</span>
+        <span>{{taxAmount}}</span>
+      </div>
+      {{/hasTax}} {{#hasTaxSummary}}
+      <div class="totals-row" style="display:block; padding-top:4px;">
+        <div style="font-weight:600; color:var(--text-medium); margin-bottom:2px; font-size:12px;">{{labels.taxSummaryHeading}}</div>
+        <div>
+          <table style="width:100%; font-size:11px; border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th style="text-align:left; color:var(--text-light); font-weight:500;">{{labels.taxLabel}}</th>
+                <th style="text-align:right; color:var(--text-light); font-weight:500;">{{labels.taxableLabel}}</th>
+                <th style="text-align:right; color:var(--text-light); font-weight:500;">{{labels.taxAmountLabel}}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{#taxSummary}}
+              <tr>
+                <td style="padding:2px 0;">{{label}}</td>
+                <td style="text-align:right; padding:2px 0;">{{taxable}}</td>
+                <td style="text-align:right; padding:2px 0;">{{amount}}</td>
+              </tr>
+              {{/taxSummary}}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {{/hasTaxSummary}}
+      <div class="totals-row total">
+        <span>{{labels.totalLabel}}</span>
+        <span>{{total}}</span>
+      </div>
+    </div>
+
+    {{#notes}}
+    <div class="notes-section">
+      <div class="section-label">{{labels.notesHeading}}</div>
+      <div class="notes-content">{{notes}}</div>
+    </div>
+    {{/notes}}
+
+    <div class="footer">
+      {{#paymentTerms}}<p>
+        <strong>{{labels.paymentTermsLabel}}:</strong> {{paymentTerms}}
+      </p>{{/paymentTerms}} {{#paymentMethods}}<p>
+        <strong>{{labels.paymentMethodsLabel}}:</strong> {{paymentMethods}}
+      </p>{{/paymentMethods}} {{#bankAccount}}<p>
+        <strong>{{labels.bankAccountLabel}}:</strong> {{bankAccount}}
+      </p>{{/bankAccount}} {{#companyTaxId}}<p>
+        {{labels.taxIdLabel}}: {{companyTaxId}}
+      </p>{{/companyTaxId}}
+    </div>
+  </body>
+</html>

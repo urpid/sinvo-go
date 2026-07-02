@@ -1,0 +1,21 @@
+# Ignore everything by default.
+*
+
+# Allow directories so selected files below can be unignored.
+!*/
+
+# Root project files.
+!.gitignore
+!README.md
+!go.mod
+!go.sum
+!build.sh
+!main.go
+
+# Source tree.
+!/src/
+!/src/**
+
+# Optional bundled PDF renderers.
+!/tools/
+!/tools/**

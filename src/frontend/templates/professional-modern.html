@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="{{locale}}">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{labels.invoiceTitle}} {{invoiceNumber}}</title>
+    <style>
+      :root {
+        --highlight-color: {{highlightColor || "#2563eb"}};
+        --highlight-light: {{highlightColorLight || "#dbeafe"}};
+        --text-dark: #1f2937;
+        --text-medium: #4b5563;
+        --text-light: #6b7280;
+        --border-color: #e5e7eb;
+        --background-light: #f9fafb;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      @page { size: A4; margin: 10mm; }
+      body { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.42; color: var(--text-dark); background:#fff; padding:4mm 6mm; max-width:190mm; margin:0 auto; font-size:12.2px; }
+
+  .header { /* float-based layout for consistent PDF engine rendering */ margin-bottom:16px; padding-bottom:8px; border-bottom:2px solid var(--highlight-color); }
+
+      .company-info {
+        float: left;
+        width: 62%;
+      }
+
+      /* brand row with optional logo; absolute-positioned logo fits company-info height */
+      .brand {
+        position: relative;
+        margin-right: 276px;
+        padding-left: 148px;
+        margin-bottom: 6px;
+      }
+      .brand .logo-box {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 140px;
+        padding-right: 8px;
+      }
+      .brand .company-info {
+        float: none;
+        width: auto;
+      }
+      .brand img.logo {
+        height: 100%;
+        width: auto;
+        object-fit: contain;
+        display: block;
+        max-width: 220px;
+      }
+
+      .company-name { font-size:20px; font-weight:800; color:var(--highlight-color); margin-bottom:4px; letter-spacing:-0.02em; }
+
+      .company-details {
+        color: var(--text-medium);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .company-details p {
+        margin: 2px 0;
+      }
+
+      .invoice-info {
+        float: right;
+        text-align: right;
+        max-width: 320px;
+      }
+
+      .invoice-title { font-size:24px; font-weight:900; color:var(--text-dark); margin-bottom:6px; letter-spacing:-0.025em; }
+      .invoice-title-row {
+        clear: both;
+        padding-top: 8px;
+      }
+      .invoice-title--top {
+        text-align: left;
+        margin: 0 0 6px 0;
+      }
+      .invoice-number--top {
+        text-align: left;
+        font-size: 12px;
+        color: var(--text-medium);
+        margin-bottom: 10px;
+      }
+
+      .invoice-meta {
+        background: var(--highlight-light);
+        padding: 12px;
+        border-radius: 8px;
+        border-left: 4px solid var(--highlight-color);
+      }
+
+      .invoice-meta p {
+        margin: 2px 0;
+        font-size: 12px;
+      }
+
+      .invoice-meta strong {
+        color: var(--text-dark);
+        font-weight: 600;
+      }
+
+      .customer-section { margin-bottom:16px; }
+
+      .section-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--highlight-color);
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .customer-card { background: var(--background-light); padding:10px; border-radius:6px; border:1px solid var(--border-color); }
+
+      .customer-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin-bottom: 6px;
+      }
+
+      .customer-details {
+        color: var(--text-medium);
+        font-size: 12px;
+      }
+
+      .customer-details p {
+        margin: 2px 0;
+      }
+
+      .items-section { margin-bottom:16px; }
+
+      .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid var(--border-color);
+        page-break-inside: avoid;
+      }
+
+      .items-table thead {
+        background: var(--highlight-color);
+        color: white;
+      }
+
+      .items-table th { padding:6px 8px; text-align:left; font-weight:600; font-size:10.5px; text-transform:uppercase; letter-spacing:0.02em; }
+
+      .items-table th:last-child,
+      .items-table td:last-child {
+        text-align: right;
+      }
+
+      .items-table tbody tr {
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .items-table tbody tr:last-child {
+        border-bottom: none;
+      }
+
+      .items-table tbody tr:hover {
+        background-color: var(--background-light);
+      }
+
+      .items-table td { padding:6px 8px; font-size:11.2px; }
+
+      .item-description {
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 2px;
+      }
+
+      .item-code {
+        font-family: "Monaco", "Menlo", monospace;
+        background: var(--highlight-light);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+        color: var(--highlight-color);
+        font-weight: 600;
+      }
+
+      .item-notes {
+        color: var(--text-light);
+        font-size: 11px;
+        font-style: italic;
+        margin-top: 2px;
+      }
+
+      .quantity, .unit-price, .line-total {
+        font-family: "Monaco", "Menlo", monospace;
+        font-weight: 600;
+      }
+
+      .totals-section { display:flex; justify-content:flex-end; margin-bottom:16px; }
+
+      .totals-card { background:#fff; border:2px solid var(--highlight-color); border-radius:6px; overflow:hidden; min-width:260px; page-break-inside:avoid; }
+
+      .totals-header { background:var(--highlight-color); color:#fff; padding:8px 12px; font-weight:700; text-transform:uppercase; letter-spacing:0.02em; }
+
+      .totals-body { padding:10px 12px; }
+
+      .totals-row { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border-color); }
+
+      .totals-row:last-child { border-bottom:none; border-top:2px solid var(--highlight-color); padding-top:8px; margin-top:6px; }
+
+      .totals-row.total-final { font-size:15px; font-weight:800; color:var(--highlight-color); }
+
+      .totals-label {
+        color: var(--text-medium);
+        font-weight: 500;
+      }
+
+      .totals-value {
+        font-family: "Monaco", "Menlo", monospace;
+        font-weight: 700;
+        color: var(--text-dark);
+        font-size: 12px;
+      }
+
+      .notes-section { margin-bottom:16px; }
+
+      .notes-content { background:var(--background-light); padding:10px; border-radius:6px; border-left:4px solid var(--highlight-color); color:var(--text-medium); font-size:11.5px; line-height:1.4; }
+
+      .footer { border-top:1px solid var(--border-color); padding-top:12px; color:var(--text-light); font-size:10.5px; }
+
+      .footer-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+      }
+
+      .footer-section h4 {
+        color: var(--highlight-color);
+        font-weight: 600;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+      }
+
+      .footer-section p {
+        margin: 4px 0;
+        line-height: 1.4;
+      }
+
+      .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .status-draft {
+        background: #fef3c7;
+        color: #92400e;
+      }
+
+      .status-sent {
+        background: #dbeafe;
+        color: #1e40af;
+      }
+
+      .status-paid {
+        background: #d1fae5;
+        color: #065f46;
+      }
+
+      .status-overdue {
+        background: #fecaca;
+        color: #991b1b;
+      }
+
+      @media print { body { padding:4mm 6mm; font-size:12px; } .header { margin-bottom:16px; } .company-name { font-size:20px; } .invoice-title { font-size:24px; } table, tr, td, th { page-break-inside: avoid !important; } }
+
+      @media (max-width: 640px) {
+        body {
+          padding: 20px;
+        }
+
+        .header {
+          flex-direction: column;
+          gap: 20px;
+        }
+
+        .invoice-info {
+          text-align: left;
+        }
+
+        .items-table {
+          font-size: 12px;
+        }
+
+        .items-table th,
+        .items-table td {
+          padding: 8px 6px;
+        }
+
+        .footer-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* brand/left-logo layout */
+      .header {
+        position: relative;
+      }
+      .invoice-meta {
+        float: right;
+        max-width: 260px;
+        margin-left: 16px;
+      }
+      .brand {
+        margin-right: 276px;
+      } /* keep clear of meta box */
+      .brand .logo {
+        height: 100%;
+        max-height: none;
+        max-width: 220px;
+        object-fit: contain;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Top title -->
+    <div class="title-top">
+      <h1 class="invoice-title invoice-title--top">{{labels.invoiceTitle}}</h1>
+    </div>
+    <div class="header">
+      <div class="invoice-meta">
+        <p><strong>{{labels.invoiceNumberShortLabel}}:</strong> {{invoiceNumber}}</p>
+        <p><strong>{{labels.invoiceDateLabel}}:</strong> {{issueDate}}</p>
+        {{#dueDate}}<p><strong>{{labels.dueDateLabel}}:</strong> {{dueDate}}</p>{{/dueDate}}
+        <p>
+          <strong>{{labels.statusLabel}}:</strong> <span class="status-badge status-{{status}}"
+          >{{status}}</span>
+        </p>
+      </div>
+
+      <div class="brand">
+        <div class="logo-box">
+          {{#logoUrl}}<img
+            class="logo"
+            src="{{logoUrl}}"
+            alt="{{companyName}} logo"
+          />{{/logoUrl}}
+        </div>
+        <div class="company-info">
+          <h1 class="company-name">{{companyName}}</h1>
+          <div class="company-details">
+            {{#companyAddress}}<p>{{{companyAddress}}}</p>{{/companyAddress}}
+            {{#companyPostalCity}}<p>{{companyPostalCity}}</p>{{/companyPostalCity}}
+            {{#companyEmail}}<p>{{companyEmail}}</p>{{/companyEmail}}
+            {{#companyPhone}}<p>{{companyPhone}}</p>{{/companyPhone}}
+            {{#companyTaxId}}<p>{{labels.taxIdLabel}}: {{companyTaxId}}</p>{{/companyTaxId}}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Title row removed; title now at top -->
+
+    <div class="customer-section">
+  <h2 class="section-title">{{labels.billToHeading}}</h2>
+      <div class="customer-card">
+        <div class="customer-name">{{customerName}}</div>
+        <div class="customer-details">
+          {{#customerEmail}}<p>{{customerEmail}}</p>{{/customerEmail}}
+          {{#customerContactName}}<p>{{customerContactName}}</p>{{/customerContactName}}
+          {{#customerPhone}}<p>{{customerPhone}}</p>{{/customerPhone}}
+          {{#customerAddress}}<p>{{{customerAddress}}}</p>{{/customerAddress}}
+          {{#customerPostalCity}}<p>{{customerPostalCity}}</p>{{/customerPostalCity}}
+          {{#customerCountryCode}}<p>{{customerCountryCode}}</p>{{/customerCountryCode}}
+          {{#customerTaxId}}<p>{{labels.taxIdLabel}}: {{customerTaxId}}</p>{{/customerTaxId}}
+        </div>
+      </div>
+    </div>
+
+    <div class="items-section">
+  <h2 class="section-title">{{labels.itemsHeading}}</h2>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>{{labels.itemHeaderDescription}}</th>
+            <th>{{labels.itemHeaderQuantityShort}}</th>
+            {{#hasItemUnits}}<th>{{labels.itemHeaderUnit}}</th>{{/hasItemUnits}}
+            <th>{{labels.itemHeaderUnitPrice}}</th>
+            <th>{{labels.itemHeaderAmount}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#items}}
+          <tr>
+            <td>
+              <div class="item-description">{{description}}</div>
+              {{#notes}}<div class="item-notes">{{notes}}</div>{{/notes}}
+            </td>
+            <td class="quantity">{{quantity}}</td>
+            {{#hasItemUnits}}<td>{{unit}}</td>{{/hasItemUnits}}
+            <td class="unit-price">{{unitPrice}}</td>
+            <td class="line-total">{{lineTotal}}</td>
+          </tr>
+          {{/items}}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="totals-section">
+      <div class="totals-card">
+  <div class="totals-header">{{labels.summaryHeading}}</div>
+        <div class="totals-body">
+          <div class="totals-row">
+            <span class="totals-label">{{labels.subtotalLabel}}:</span>
+            <span class="totals-value">{{subtotal}}</span>
+          </div>
+          {{#hasDiscount}}
+          <div class="totals-row">
+            <span class="totals-label"
+            >{{labels.discountLabel}}
+              {{#discountPercentage}}({{discountPercentage}}%){{/discountPercentage}}:</span>
+            <span class="totals-value">-{{discountAmount}}</span>
+          </div>
+          {{/hasDiscount}} {{#hasTax}}
+          <div class="totals-row">
+            <span class="totals-label">{{labels.taxLabel}} ({{taxRate}}%):</span>
+            <span class="totals-value">{{taxAmount}}</span>
+          </div>
+          {{/hasTax}} {{#hasTaxSummary}}
+          <div class="totals-row" style="display:block; padding-top:4px;">
+            <div style="font-weight:600; color:var(--text-medium); margin-bottom:4px; font-size:11.5px;">{{labels.taxSummaryHeading}}</div>
+            <table style="width:100%; font-size:11px; border-collapse:collapse;">
+              <thead>
+                <tr>
+                  <th style="text-align:left; color:var(--text-light); font-weight:500;">{{labels.taxLabel}}</th>
+                  <th style="text-align:right; color:var(--text-light); font-weight:500;">{{labels.taxableLabel}}</th>
+                  <th style="text-align:right; color:var(--text-light); font-weight:500;">{{labels.taxAmountLabel}}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{#taxSummary}}
+                <tr>
+                  <td style="padding:2px 0;">{{label}}</td>
+                  <td style="text-align:right; padding:2px 0;">{{taxable}}</td>
+                  <td style="text-align:right; padding:2px 0;">{{amount}}</td>
+                </tr>
+                {{/taxSummary}}
+              </tbody>
+            </table>
+          </div>
+          {{/hasTaxSummary}}
+          <div class="totals-row total-final">
+            <span class="totals-label">{{labels.totalLabel}}:</span>
+            <span class="totals-value">{{total}}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {{#notes}}
+    <div class="notes-section">
+      <h2 class="section-title">{{labels.notesHeading}}</h2>
+      <div class="notes-content">
+        {{notes}}
+      </div>
+    </div>
+    {{/notes}}
+
+    <div class="footer">
+      <div class="footer-grid">
+        {{#paymentTerms}}
+        <div class="footer-section">
+          <h4>{{labels.paymentTermsLabel}}</h4>
+          <p>{{paymentTerms}}</p>
+        </div>
+        {{/paymentTerms}} {{#paymentMethods}}
+        <div class="footer-section">
+          <h4>{{labels.paymentMethodsLabel}}</h4>
+          <p>{{paymentMethods}}</p>
+        </div>
+        {{/paymentMethods}} {{#bankAccount}}
+        <div class="footer-section">
+          <h4>{{labels.bankAccountLabel}}</h4>
+          <p style="white-space: pre-line;">{{bankAccount}}</p>
+        </div>
+        {{/bankAccount}}
+      </div>
+    </div>
+    <script>
+      (function () {
+        try {
+          var brand = document.querySelector(".brand");
+          if (!brand) return;
+          var logo = brand.querySelector("img.logo");
+          var info = brand.querySelector(".company-info");
+          if (!logo || !info) return;
+          function fit() {
+            try {
+              logo.style.height = "auto";
+              var h = info.offsetHeight;
+              if (h && h > 0) {
+                logo.style.height = h + "px";
+                logo.style.width = "auto";
+              }
+            } catch (e) {}
+          }
+          if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(fit);
+          }
+          window.addEventListener("load", fit);
+          setTimeout(fit, 60);
+        } catch (e) {}
+      })();
+    </script>
+  </body>
+</html>
