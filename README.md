@@ -44,6 +44,22 @@ http://127.0.0.1:8123
 
 ## Build
 
+Build all supported targets into `builds/`:
+
+```sh
+./build.sh
+```
+
+This creates:
+
+```text
+builds/sinvo-go-linux-amd64
+builds/sinvo-go-linux-arm64
+builds/sinvo-go-windows-amd64.exe
+```
+
+Single-target builds:
+
 Linux amd64:
 
 ```sh
@@ -114,20 +130,6 @@ sinvo-go-linux-amd64/
 
 If no renderer is available, the app still runs, but PDF export fails with an error.
 
-## Releases
-
-Compiled files should be published through GitHub Releases, not committed directly into the repository.
-
-Suggested release assets:
-
-```text
-sinvo-go-v0.1.0-linux-amd64.zip
-sinvo-go-v0.1.0-linux-arm64.zip
-sinvo-go-v0.1.0-windows-amd64.zip
-```
-
-Do not include local runtime data such as `data/sinvo-go.sqlite`, `backups/`, or `exports/` in release archives.
-
 ## Security Notes
 
 Sinvo Go is designed as a local desktop-style app. It binds to `127.0.0.1:8123` and does not include user accounts or API authentication.
@@ -136,6 +138,6 @@ Do not expose the app directly to a public network.
 
 ## License
 
-Add your chosen license here before publishing.
+MIT License. See [LICENSE](LICENSE).
 
 The original Invio project is released under the Unlicense.
