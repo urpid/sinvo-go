@@ -281,6 +281,7 @@
           <form id="settings-numbering-form" class="panel form-grid settings-form settings-panel" data-settings-panel="numbering">
             <h2 class="wide">Nummerierung</h2>
             <label class="check"><input name="invoiceNumberingEnabled" type="checkbox"> Nummerierung aktiv</label>
+            <label>Nummernstellen<input name="invoiceNumberPadding" type="number" min="2" max="8" step="1" placeholder="4"></label>
             <label class="wide">Nummernpattern<input name="invoiceNumberPattern" placeholder="INV-{YYYY}-{SEQ}"></label>
             <p class="wide help-text">Available placeholders: {SEQ} (sequential, recommended), {YYYY}, {YY}, {MM}, {DD}, {DATE}, {RAND4}</p>
             <div class="form-actions"><button type="submit">Speichern</button></div>

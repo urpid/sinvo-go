@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+const defaultInvoiceNumberPattern = "INV-{YYYY}-{SEQ}"
+
 func (a *App) initDatabase() error {
 	if _, err := a.db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		return err
@@ -177,8 +179,6 @@ func (a *App) initDatabase() error {
 		"dateFormat":                   "DD.MM.YYYY",
 		"numberFormat":                 "comma",
 		"postalCityFormat":             "postal-city",
-		"invoicePrefix":                "RE",
-		"invoiceIncludeYear":           "true",
 		"invoiceNumberPadding":         "4",
 		"invoiceNumberPattern":         "",
 		"invoiceNumberingEnabled":      "true",
@@ -324,7 +324,7 @@ func (a *App) updateSettings(data map[string]string) (map[string]string, error) 
 		case "templateId":
 			selectedTemplateID = normalizeTemplateID(value)
 			value = selectedTemplateID
-		case "invoiceIncludeYear", "invoiceNumberingEnabled", "allowProtectedInvoiceChanges", "embedXmlInPdf", "embedXmlInHtml":
+		case "invoiceNumberingEnabled", "allowProtectedInvoiceChanges", "embedXmlInPdf", "embedXmlInHtml":
 			value = boolText(value)
 		case "locale":
 			if strings.ToLower(value) == "en" {
@@ -1364,25 +1364,20 @@ func (a *App) nextInvoiceNumber() (string, error) {
 		return "", err
 	}
 	pattern := trim(settings["invoiceNumberPattern"])
-	if pattern != "" {
-		expanded := expandNumberPattern(pattern)
-		if !strings.Contains(pattern, "{SEQ}") {
-			return expanded, nil
-		}
-		prefix := strings.Split(expanded, "{SEQ}")[0]
-		next := a.findMaxSequence(prefix) + 1
-		return strings.ReplaceAll(expanded, "{SEQ}", fmt.Sprintf("%03d", next)), nil
+	if pattern == "" {
+		pattern = defaultInvoiceNumberPattern
 	}
-
-	prefix := setting(settings, "invoicePrefix", "RE")
-	includeYear := setting(settings, "invoiceIncludeYear", "true") != "false"
 	padding := intSetting(settings, "invoiceNumberPadding", 4)
-	base := prefix + "-"
-	if includeYear {
-		base += strconv.Itoa(time.Now().Year()) + "-"
+	if padding < 2 || padding > 8 {
+		padding = 4
 	}
-	next := a.findMaxSequence(base) + 1
-	return base + fmt.Sprintf("%0*d", padding, next), nil
+	expanded := expandNumberPattern(pattern)
+	if !strings.Contains(pattern, "{SEQ}") {
+		return expanded, nil
+	}
+	prefix := strings.Split(expanded, "{SEQ}")[0]
+	next := a.findMaxSequence(prefix) + 1
+	return strings.ReplaceAll(expanded, "{SEQ}", fmt.Sprintf("%0*d", padding, next)), nil
 }
 
 func (a *App) findMaxSequence(prefix string) int {
