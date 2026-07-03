@@ -34,13 +34,40 @@ This project is an independent Go rewrite inspired by [Invio](https://github.com
 go run .
 ```
 
-The app starts a local server and opens the browser automatically.
+The app starts a server and opens the browser automatically.
 
-Default local address:
+Default address:
+
+```text
+http://0.0.0.0:8123
+```
+
+On the same machine, open:
 
 ```text
 http://127.0.0.1:8123
 ```
+
+From another device in the same LAN, open:
+
+```text
+http://<this-computer-lan-ip>:8123
+```
+
+## Authentication
+
+Sinvo Go reads optional HTTP Basic Auth credentials from `config.json` beside `main.go`:
+
+```json
+{
+  "username": "admin",
+  "password": "admin"
+}
+```
+
+Authentication is enabled only when `config.json` exists and both `username` and `password` are set to non-empty values. If the file is missing, or either value is missing or empty, the app runs without authentication.
+
+Malformed `config.json` stops startup with an error.
 
 ## Build
 
@@ -132,7 +159,7 @@ If no renderer is available, the app still runs, but PDF export fails with an er
 
 ## Security Notes
 
-Sinvo Go is designed as a local desktop-style app. It binds to `127.0.0.1:8123` and does not include user accounts or API authentication.
+Sinvo Go binds to `0.0.0.0:8123` so it can be reached from other devices in the same LAN. Enable HTTP Basic Auth through `config.json` before using it on a shared network.
 
 Do not expose the app directly to a public network.
 

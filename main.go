@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -19,9 +20,14 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const instanceAddr = "127.0.0.1:8123"
+const instanceAddr = "0.0.0.0:8123"
 
 var devMode = "true"
+
+type authConfig struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
 
 func main() {
 	paths, err := resolvePaths()
@@ -31,10 +37,14 @@ func main() {
 	if err := ensureAppDirs(paths); err != nil {
 		log.Fatal(err)
 	}
+	auth, err := loadAuthConfig(paths.BaseDir)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	ln, err := net.Listen("tcp", instanceAddr)
 	if err != nil {
-		url, probeErr := runningInstanceURL(instanceAddr)
+		url, probeErr := runningInstanceURL(instanceAddr, auth)
 		if probeErr == nil {
 			log.Printf("Sinvo Go läuft bereits: %s", url)
 			openBrowser(url)
@@ -64,11 +74,16 @@ func main() {
 
 	mux := http.NewServeMux()
 	application.Routes(mux)
-	server.Handler = mux
+	server.Handler = withBasicAuth(mux, auth)
 
 	url := "http://" + ln.Addr().String()
 	log.Printf("Sinvo Go startet: %s", url)
 	log.Printf("Datenbank: %s", paths.DBPath)
+	if auth.enabled() {
+		log.Printf("HTTP Basic Auth ist aktiv")
+	} else {
+		log.Printf("HTTP Basic Auth ist deaktiviert")
+	}
 	go openBrowser(url)
 
 	if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
@@ -100,6 +115,45 @@ func resolvePaths() (sinvo.Paths, error) {
 	}, nil
 }
 
+func loadAuthConfig(baseDir string) (authConfig, error) {
+	path := filepath.Join(baseDir, "config.json")
+	body, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return authConfig{}, nil
+	}
+	if err != nil {
+		return authConfig{}, err
+	}
+	var config authConfig
+	if err := json.Unmarshal(body, &config); err != nil {
+		return authConfig{}, fmt.Errorf("config.json konnte nicht gelesen werden: %w", err)
+	}
+	return config, nil
+}
+
+func (config authConfig) enabled() bool {
+	return config.Username != "" && config.Password != ""
+}
+
+func withBasicAuth(next http.Handler, config authConfig) http.Handler {
+	if !config.enabled() {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username, password, ok := r.BasicAuth()
+		if !ok || !sameCredential(username, config.Username) || !sameCredential(password, config.Password) {
+			w.Header().Set("WWW-Authenticate", `Basic realm="Sinvo Go"`)
+			http.Error(w, "authentication required", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func sameCredential(left, right string) bool {
+	return subtle.ConstantTimeCompare([]byte(left), []byte(right)) == 1
+}
+
 func ensureAppDirs(paths sinvo.Paths) error {
 	for _, dir := range []string{paths.DataDir, paths.BackupsDir, paths.ExportsDir} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
@@ -109,13 +163,20 @@ func ensureAppDirs(paths sinvo.Paths) error {
 	return nil
 }
 
-func runningInstanceURL(addr string) (string, error) {
+func runningInstanceURL(addr string, auth authConfig) (string, error) {
 	endpoint := "http://" + addr + "/api/instance"
 	client := http.Client{Timeout: 300 * time.Millisecond}
 	var lastErr error
 	deadline := time.Now().Add(2 * time.Second)
 	for {
-		resp, err := client.Get(endpoint)
+		req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+		if err != nil {
+			return "", err
+		}
+		if auth.enabled() {
+			req.SetBasicAuth(auth.Username, auth.Password)
+		}
+		resp, err := client.Do(req)
 		if err == nil {
 			var data struct {
 				App string `json:"app"`
