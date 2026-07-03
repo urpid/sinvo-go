@@ -13,6 +13,7 @@ import (
 )
 
 const AppID = "sinvo-go"
+const AppVersion = "0.1.0"
 
 //go:embed frontend/*
 var staticFiles embed.FS

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -15,8 +16,9 @@ func (a *App) handleAPI(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case path == "/instance" && r.Method == http.MethodGet:
 		writeJSON(w, map[string]string{
-			"app": AppID,
-			"url": "http://" + r.Host,
+			"app":     AppID,
+			"version": AppVersion,
+			"url":     "http://" + r.Host,
 		}, http.StatusOK)
 	case path == "/shutdown" && r.Method == http.MethodPost:
 		writeJSON(w, map[string]bool{"ok": true}, http.StatusOK)
@@ -146,6 +148,12 @@ func (a *App) handleCustomers(w http.ResponseWriter, r *http.Request, parts []st
 	if len(parts) == 1 {
 		switch r.Method {
 		case http.MethodGet:
+			if r.URL.Query().Get("paged") == "1" {
+				query, page := listPageRequest(r)
+				customers, err := a.listCustomersPage(query, page)
+				writeResult(w, customers, err)
+				return
+			}
 			customers, err := a.listCustomers()
 			writeResult(w, customers, err)
 		case http.MethodPost:
@@ -188,6 +196,12 @@ func (a *App) handleProducts(w http.ResponseWriter, r *http.Request, parts []str
 		switch r.Method {
 		case http.MethodGet:
 			includeInactive := r.URL.Query().Get("includeInactive") == "1"
+			if r.URL.Query().Get("paged") == "1" {
+				query, page := listPageRequest(r)
+				products, err := a.listProductsPage(query, page, includeInactive)
+				writeResult(w, products, err)
+				return
+			}
 			products, err := a.listProducts(includeInactive)
 			writeResult(w, products, err)
 		case http.MethodPost:
@@ -236,6 +250,12 @@ func (a *App) handleInvoices(w http.ResponseWriter, r *http.Request, parts []str
 	if len(parts) == 1 {
 		switch r.Method {
 		case http.MethodGet:
+			if r.URL.Query().Get("paged") == "1" {
+				query, page := listPageRequest(r)
+				invoices, err := a.listInvoicesPage(query, page)
+				writeResult(w, invoices, err)
+				return
+			}
 			invoices, err := a.listInvoices()
 			writeResult(w, invoices, err)
 		case http.MethodPost:
@@ -368,4 +388,12 @@ func splitPath(path string) []string {
 		return nil
 	}
 	return strings.Split(path, "/")
+}
+
+func listPageRequest(r *http.Request) (string, int) {
+	page, err := strconv.Atoi(r.URL.Query().Get("page"))
+	if err != nil || page < 0 {
+		page = 0
+	}
+	return trim(r.URL.Query().Get("q")), page
 }

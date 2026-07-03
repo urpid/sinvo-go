@@ -43,6 +43,13 @@ body {
   font-weight: 700;
 }
 
+.brand-version {
+  margin-left: 6px;
+  color: #9fb0c0;
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .nav {
   display: flex;
   flex-wrap: wrap;
@@ -276,6 +283,29 @@ th {
   color: var(--muted);
   font-size: 12px;
   font-weight: 750;
+}
+
+.list-control-cell {
+  min-width: 250px;
+}
+
+.list-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 5px;
+}
+
+.list-search {
+  width: 170px;
+  min-height: 28px;
+  padding: 4px 7px;
+  font-size: 12px;
+}
+
+.list-page {
+  width: 28px;
+  padding: 0;
 }
 
 tr:last-child td {

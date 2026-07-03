@@ -18,6 +18,7 @@ import (
 )
 
 const defaultInvoiceNumberPattern = "INV-{YYYY}-{SEQ}"
+const tableListLimit = 10
 
 func (a *App) initDatabase() error {
 	if _, err := a.db.Exec("PRAGMA foreign_keys = ON"); err != nil {
@@ -386,6 +387,44 @@ func (a *App) listCustomers() ([]Customer, error) {
 	return items, rows.Err()
 }
 
+func (a *App) listCustomersPage(query string, page int) (ListPage[Customer], error) {
+	where := ""
+	args := []any{}
+	if query != "" {
+		like := "%" + strings.ToLower(query) + "%"
+		where = ` WHERE lower(coalesce(name, '') || ' ' || coalesce(contact_name, '') || ' ' || coalesce(email, '') || ' ' ||
+			coalesce(phone, '') || ' ' || coalesce(address, '') || ' ' || coalesce(city, '') || ' ' ||
+			coalesce(postal_code, '') || ' ' || coalesce(country_code, '') || ' ' || coalesce(tax_id, '')) LIKE ?`
+		args = append(args, like)
+	}
+
+	var total int
+	if err := a.db.QueryRow("SELECT COUNT(*) FROM customers"+where, args...).Scan(&total); err != nil {
+		return ListPage[Customer]{}, err
+	}
+
+	pageArgs := append(append([]any{}, args...), tableListLimit, page*tableListLimit)
+	rows, err := a.db.Query(`SELECT id, name, contact_name, email, phone, address, city, postal_code, country_code, tax_id, created_at
+		FROM customers`+where+` ORDER BY lower(name) ASC, name ASC LIMIT ? OFFSET ?`, pageArgs...)
+	if err != nil {
+		return ListPage[Customer]{}, err
+	}
+	defer rows.Close()
+
+	items := []Customer{}
+	for rows.Next() {
+		c, err := scanCustomer(rows)
+		if err != nil {
+			return ListPage[Customer]{}, err
+		}
+		items = append(items, c)
+	}
+	if err := rows.Err(); err != nil {
+		return ListPage[Customer]{}, err
+	}
+	return listPage(items, query, page, total), nil
+}
+
 func (a *App) getCustomer(id string) (Customer, error) {
 	row := a.db.QueryRow(`SELECT id, name, contact_name, email, phone, address, city, postal_code, country_code, tax_id, created_at
 		FROM customers WHERE id = ?`, id)
@@ -484,6 +523,50 @@ func (a *App) listProducts(includeInactive bool) ([]Product, error) {
 		products = append(products, p)
 	}
 	return products, rows.Err()
+}
+
+func (a *App) listProductsPage(query string, page int, includeInactive bool) (ListPage[Product], error) {
+	whereParts := []string{}
+	args := []any{}
+	if !includeInactive {
+		whereParts = append(whereParts, "is_active = 1")
+	}
+	if query != "" {
+		like := "%" + strings.ToLower(query) + "%"
+		whereParts = append(whereParts, `lower(coalesce(name, '') || ' ' || coalesce(description, '') || ' ' ||
+			coalesce(sku, '') || ' ' || coalesce(unit, '') || ' ' || coalesce(category, '')) LIKE ?`)
+		args = append(args, like)
+	}
+	where := ""
+	if len(whereParts) > 0 {
+		where = " WHERE " + strings.Join(whereParts, " AND ")
+	}
+
+	var total int
+	if err := a.db.QueryRow("SELECT COUNT(*) FROM products"+where, args...).Scan(&total); err != nil {
+		return ListPage[Product]{}, err
+	}
+
+	pageArgs := append(append([]any{}, args...), tableListLimit, page*tableListLimit)
+	rows, err := a.db.Query(`SELECT id, name, description, unit_price, sku, unit, category, tax_definition_id, is_active, created_at, updated_at
+		FROM products`+where+` ORDER BY lower(name) ASC, name ASC LIMIT ? OFFSET ?`, pageArgs...)
+	if err != nil {
+		return ListPage[Product]{}, err
+	}
+	defer rows.Close()
+
+	products := []Product{}
+	for rows.Next() {
+		p, err := scanProduct(rows)
+		if err != nil {
+			return ListPage[Product]{}, err
+		}
+		products = append(products, p)
+	}
+	if err := rows.Err(); err != nil {
+		return ListPage[Product]{}, err
+	}
+	return listPage(products, query, page, total), nil
 }
 
 func (a *App) getProduct(id string) (Product, error) {
@@ -804,6 +887,50 @@ func (a *App) listInvoices() ([]Invoice, error) {
 		invoices = append(invoices, applyDerivedStatus(inv))
 	}
 	return invoices, rows.Err()
+}
+
+func (a *App) listInvoicesPage(query string, page int) (ListPage[Invoice], error) {
+	where := ""
+	args := []any{}
+	if query != "" {
+		like := "%" + strings.ToLower(query) + "%"
+		where = ` WHERE lower(coalesce(i.invoice_number, '') || ' ' || coalesce(c.name, '') || ' ' ||
+			coalesce(i.issue_date, '') || ' ' || coalesce(i.due_date, '') || ' ' || coalesce(i.currency, '') || ' ' ||
+			coalesce(i.status, '') || ' ' || coalesce(i.notes, '')) LIKE ?`
+		args = append(args, like)
+	}
+
+	var total int
+	if err := a.db.QueryRow(`SELECT COUNT(*)
+		FROM invoices i
+		LEFT JOIN customers c ON c.id = i.customer_id`+where, args...).Scan(&total); err != nil {
+		return ListPage[Invoice]{}, err
+	}
+
+	pageArgs := append(append([]any{}, args...), tableListLimit, page*tableListLimit)
+	rows, err := a.db.Query(`SELECT i.id, i.invoice_number, i.customer_id, c.name, i.issue_date, i.due_date, i.currency, i.status,
+		i.subtotal, i.discount_amount, i.discount_percentage, i.tax_mode, i.tax_rate, i.tax_definition_id, i.tax_amount, i.total,
+		i.prices_include_tax, i.rounding_mode, i.payment_terms, i.notes, i.created_at, i.updated_at
+		FROM invoices i
+		LEFT JOIN customers c ON c.id = i.customer_id`+where+`
+		ORDER BY i.created_at DESC, i.invoice_number DESC LIMIT ? OFFSET ?`, pageArgs...)
+	if err != nil {
+		return ListPage[Invoice]{}, err
+	}
+	defer rows.Close()
+
+	invoices := []Invoice{}
+	for rows.Next() {
+		inv, err := scanInvoice(rows)
+		if err != nil {
+			return ListPage[Invoice]{}, err
+		}
+		invoices = append(invoices, applyDerivedStatus(inv))
+	}
+	if err := rows.Err(); err != nil {
+		return ListPage[Invoice]{}, err
+	}
+	return listPage(invoices, query, page, total), nil
 }
 
 func (a *App) getInvoice(id string) (InvoiceWithDetails, error) {
@@ -1707,4 +1834,16 @@ func sortSettingsKeys(settings map[string]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func listPage[T any](items []T, query string, page int, total int) ListPage[T] {
+	return ListPage[T]{
+		Items:   items,
+		Page:    page,
+		Limit:   tableListLimit,
+		Total:   total,
+		HasPrev: page > 0,
+		HasNext: (page+1)*tableListLimit < total,
+		Query:   query,
+	}
 }

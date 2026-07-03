@@ -8,7 +8,7 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">Sinvo Go</div>
+    <div class="brand">Sinvo Go <span class="brand-version" id="app-version"></span></div>
     <nav class="nav">
       <button class="nav-button active" data-view="dashboard">Dashboard</button>
       <button class="nav-button" data-view="customers">Kunden</button>
@@ -59,7 +59,16 @@
       </form>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Name</th><th>E-Mail</th><th>Ort</th><th>Land</th><th></th></tr></thead>
+          <thead><tr>
+            <th>Name</th><th>E-Mail</th><th>Ort</th><th>Land</th>
+            <th class="list-control-cell">
+              <div class="list-controls">
+                <input class="list-search" data-list="customers" placeholder="Suche">
+                <button type="button" class="mini secondary list-page" data-list="customers" data-page="prev">&lt;</button>
+                <button type="button" class="mini secondary list-page" data-list="customers" data-page="next">&gt;</button>
+              </div>
+            </th>
+          </tr></thead>
           <tbody id="customers-table"></tbody>
         </table>
       </div>
@@ -85,7 +94,16 @@
       </form>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Name</th><th>SKU</th><th>Einheit</th><th>Kategorie</th><th class="num">Preis</th><th>Status</th><th></th></tr></thead>
+          <thead><tr>
+            <th>Name</th><th>SKU</th><th>Einheit</th><th>Kategorie</th><th class="num">Preis</th><th>Status</th>
+            <th class="list-control-cell">
+              <div class="list-controls">
+                <input class="list-search" data-list="products" placeholder="Suche">
+                <button type="button" class="mini secondary list-page" data-list="products" data-page="prev">&lt;</button>
+                <button type="button" class="mini secondary list-page" data-list="products" data-page="next">&gt;</button>
+              </div>
+            </th>
+          </tr></thead>
           <tbody id="products-table"></tbody>
         </table>
       </div>
@@ -136,7 +154,16 @@
       </form>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Nr.</th><th>Kunde</th><th>Status</th><th>Datum</th><th class="num">Gesamt</th><th></th></tr></thead>
+          <thead><tr>
+            <th>Nr.</th><th>Kunde</th><th>Status</th><th>Datum</th><th class="num">Gesamt</th>
+            <th class="list-control-cell">
+              <div class="list-controls">
+                <input class="list-search" data-list="invoices" placeholder="Suche">
+                <button type="button" class="mini secondary list-page" data-list="invoices" data-page="prev">&lt;</button>
+                <button type="button" class="mini secondary list-page" data-list="invoices" data-page="next">&gt;</button>
+              </div>
+            </th>
+          </tr></thead>
           <tbody id="invoices-table"></tbody>
         </table>
       </div>

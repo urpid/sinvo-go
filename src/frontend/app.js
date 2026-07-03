@@ -2,20 +2,37 @@ const state = {
   settings: {},
   customers: [],
   products: [],
-	  invoices: [],
-	  taxDefinitions: [],
-	  productCategories: [],
-	  productUnits: [],
-	  templates: []
-	};
+  customerList: [],
+  productList: [],
+  invoiceList: [],
+  taxDefinitions: [],
+  productCategories: [],
+  productUnits: [],
+  templates: [],
+  listPages: {
+    customers: { page: 0, query: '', total: 0, hasPrev: false, hasNext: false },
+    products: { page: 0, query: '', total: 0, hasPrev: false, hasNext: false },
+    invoices: { page: 0, query: '', total: 0, hasPrev: false, hasNext: false }
+  }
+};
 let draggedItemRow = null;
 
 $(init);
 
 function init() {
   bindEvents();
+  loadInstance();
   resetInvoiceForm();
   loadAll();
+}
+
+async function loadInstance() {
+  try {
+    const instance = await api('/instance');
+    $('#app-version').text(instance.version ? `v${instance.version}` : '');
+  } catch {
+    $('#app-version').text('');
+  }
 }
 
 function bindEvents() {
@@ -111,6 +128,23 @@ function bindEvents() {
     $(this).closest('tr').find('.item-tax-rate').val(taxDef ? numberInput(taxDef.percent) : '0.00');
     updateInvoicePreview();
   });
+  $(document).on('keydown', '.list-search', async function (event) {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    const list = $(this).data('list');
+    state.listPages[list].query = $(this).val().trim();
+    state.listPages[list].page = 0;
+    await reloadList(list);
+  });
+  $(document).on('click', '.list-page', async function () {
+    const list = $(this).data('list');
+    const direction = $(this).data('page');
+    const meta = state.listPages[list];
+    if (direction === 'prev' && !meta.hasPrev) return;
+    if (direction === 'next' && !meta.hasNext) return;
+    meta.page += direction === 'next' ? 1 : -1;
+    await reloadList(list);
+  });
 
   $(document).on('click', '[data-action]', handleTableAction);
 }
@@ -120,21 +154,61 @@ async function loadAll() {
     state.settings = await api('/settings');
     state.customers = await api('/customers');
     state.products = await api('/products?includeInactive=1');
-    state.invoices = await api('/invoices');
-	    state.taxDefinitions = await api('/tax-definitions');
-	    state.productCategories = await api('/product-categories');
-	    state.productUnits = await api('/product-units');
-	    state.templates = await api('/templates');
-	    renderAll();
+    state.taxDefinitions = await api('/tax-definitions');
+    state.productCategories = await api('/product-categories');
+    state.productUnits = await api('/product-units');
+    state.templates = await api('/templates');
+    await loadListPages();
+    renderAll();
+  } catch (err) {
+    showMessage(err.message, true);
+  }
+}
+
+async function loadListPages() {
+  await Promise.all([
+    loadListPage('customers'),
+    loadListPage('products'),
+    loadListPage('invoices')
+  ]);
+}
+
+async function loadListPage(list) {
+  const meta = state.listPages[list];
+  const q = encodeURIComponent(meta.query || '');
+  const page = encodeURIComponent(meta.page || 0);
+  const paths = {
+    customers: `/customers?paged=1&page=${page}&q=${q}`,
+    products: `/products?paged=1&includeInactive=1&page=${page}&q=${q}`,
+    invoices: `/invoices?paged=1&page=${page}&q=${q}`
+  };
+  const result = await api(paths[list]);
+  meta.page = result.page || 0;
+  meta.total = result.total || 0;
+  meta.hasPrev = !!result.hasPrev;
+  meta.hasNext = !!result.hasNext;
+  meta.query = result.query || meta.query || '';
+  if (list === 'customers') state.customerList = result.items || [];
+  if (list === 'products') state.productList = result.items || [];
+  if (list === 'invoices') state.invoiceList = result.items || [];
+}
+
+async function reloadList(list) {
+  try {
+    await loadListPage(list);
+    if (list === 'customers') renderCustomers();
+    if (list === 'products') renderProducts();
+    if (list === 'invoices') renderInvoices();
+    renderListControls();
   } catch (err) {
     showMessage(err.message, true);
   }
 }
 
 function renderAll() {
-	  renderTemplates();
-	  renderSettings();
-	  renderCustomers();
+  renderTemplates();
+  renderSettings();
+  renderCustomers();
   renderProducts();
   renderTaxDefinitions();
   renderProductOptions();
@@ -143,7 +217,16 @@ function renderAll() {
   renderInvoiceTaxOptions();
   renderInvoices();
   renderDashboard();
+  renderListControls();
   updateInvoicePreview();
+}
+
+function renderListControls() {
+  Object.entries(state.listPages).forEach(([list, meta]) => {
+    $(`.list-search[data-list=${list}]`).val(meta.query || '');
+    $(`.list-page[data-list=${list}][data-page=prev]`).prop('disabled', !meta.hasPrev);
+    $(`.list-page[data-list=${list}][data-page=next]`).prop('disabled', !meta.hasNext);
+  });
 }
 
 async function renderDashboard() {
@@ -169,7 +252,7 @@ async function renderDashboard() {
 }
 
 function renderCustomers() {
-  $('#customers-table').html(state.customers.map(c => `
+  $('#customers-table').html(state.customerList.map(c => `
     <tr>
       <td>${esc(c.name)}</td>
       <td>${esc(c.email)}</td>
@@ -184,7 +267,7 @@ function renderCustomers() {
 }
 
 function renderProducts() {
-  $('#products-table').html(state.products.map(p => `
+  $('#products-table').html(state.productList.map(p => `
     <tr>
       <td>${esc(p.name)}</td>
       <td>${esc(p.sku)}</td>
@@ -252,7 +335,7 @@ function optionRow(option, type) {
 }
 
 function renderInvoices() {
-  $('#invoices-table').html(state.invoices.map(inv => `
+  $('#invoices-table').html(state.invoiceList.map(inv => `
     <tr>
       <td>${esc(inv.invoiceNumber)}</td>
       <td>${esc(inv.customerName)}</td>

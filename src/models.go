@@ -16,6 +16,16 @@ type App struct {
 	shutdown func()
 }
 
+type ListPage[T any] struct {
+	Items   []T    `json:"items"`
+	Page    int    `json:"page"`
+	Limit   int    `json:"limit"`
+	Total   int    `json:"total"`
+	HasPrev bool   `json:"hasPrev"`
+	HasNext bool   `json:"hasNext"`
+	Query   string `json:"query"`
+}
+
 type Customer struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
