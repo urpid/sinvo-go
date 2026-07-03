@@ -9,6 +9,7 @@
 !README.md
 !LICENSE
 !config.json
+!gitty.sh
 !go.mod
 !go.sum
 !build.sh

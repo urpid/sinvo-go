@@ -69,6 +69,16 @@ Authentication is enabled only when `config.json` exists and both `username` and
 
 Malformed `config.json` stops startup with an error.
 
+## Git Helper
+
+Run the interactive Git helper from the project root:
+
+```sh
+./gitty.sh
+```
+
+It shows the status, stages changes, asks for a commit message, shows the created commit, and optionally pushes.
+
 ## Build
 
 Build all supported targets into `builds/`:
